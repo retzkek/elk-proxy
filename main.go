@@ -13,7 +13,7 @@ var authorizedCNs = []string{"Kevin Retzke 3130"}
 
 func main() {
 	proxy := NewProxyServer("localhost", "8443", "http://localhost:9200")
-	http.HandleFunc("/", proxy.handler)
+	http.Handle("/", proxy)
 	log.Printf("About to listen on 8443. Go to https://127.0.0.1:8443/")
 	srv := http.Server{Addr: ":8443"}
 

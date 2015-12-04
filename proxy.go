@@ -37,7 +37,7 @@ func NewProxyServer(address, port, target_url string) *ProxyServer {
 	}
 }
 
-func (p *ProxyServer) handler(w http.ResponseWriter, req *http.Request) {
+func (p *ProxyServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if auth, _ := authorizedCN(req.TLS.PeerCertificates); auth {
 		p.proxy.ServeHTTP(w, req)
 	} else {
