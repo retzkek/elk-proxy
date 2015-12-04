@@ -4,15 +4,20 @@ import (
 	"bytes"
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 )
 
+var authorizedCNs = []string{"Kevin Retzke 3130"}
+
 func authorized(certs []*x509.Certificate) bool {
 	for _, cert := range certs {
-		if cert.Subject.CommonName == "Kevin Retzke 3130" {
-			return true
+		for _, cn := range authorizedCNs {
+			if cert.Subject.CommonName == cn {
+				return true
+			}
 		}
 	}
 	return false
@@ -21,7 +26,7 @@ func authorized(certs []*x509.Certificate) bool {
 func handler(w http.ResponseWriter, req *http.Request) {
 	if authorized(req.TLS.PeerCertificates) {
 		w.Header().Set("Content-Type", "text/plain")
-		w.Write([]byte("You are authorized.\n"))
+		w.Write([]byte(fmt.Sprintf("Welcome %s\n", req.TLS.PeerCertificates[0].Subject.CommonName)))
 	} else {
 		http.Error(w, "not authorized", http.StatusUnauthorized)
 	}
