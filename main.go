@@ -4,36 +4,55 @@ import (
 	"bytes"
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
 	"log"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 )
 
 var authorizedCNs = []string{"Kevin Retzke 3130"}
 
-func authorized(certs []*x509.Certificate) bool {
+func authorizedCN(certs []*x509.Certificate) (bool, string) {
 	for _, cert := range certs {
 		for _, cn := range authorizedCNs {
 			if cert.Subject.CommonName == cn {
-				return true
+				return true, cn
 			}
 		}
 	}
-	return false
+	return false, ""
 }
 
-func handler(w http.ResponseWriter, req *http.Request) {
-	if authorized(req.TLS.PeerCertificates) {
-		w.Header().Set("Content-Type", "text/plain")
-		w.Write([]byte(fmt.Sprintf("Welcome %s\n", req.TLS.PeerCertificates[0].Subject.CommonName)))
+type ProxyServer struct {
+	Address string
+	Port    string
+
+	proxy *httputil.ReverseProxy
+}
+
+func NewProxyServer(address, port, target_url string) *ProxyServer {
+	t, err := url.Parse(target_url)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return &ProxyServer{Address: address,
+		Port:  port,
+		proxy: httputil.NewSingleHostReverseProxy(t),
+	}
+}
+
+func (p *ProxyServer) handler(w http.ResponseWriter, req *http.Request) {
+	if auth, _ := authorizedCN(req.TLS.PeerCertificates); auth {
+		p.proxy.ServeHTTP(w, req)
 	} else {
 		http.Error(w, "not authorized", http.StatusUnauthorized)
 	}
 }
 
 func main() {
-	http.HandleFunc("/", handler)
+	proxy := NewProxyServer("localhost", "8443", "http://localhost:9200")
+	http.HandleFunc("/", proxy.handler)
 	log.Printf("About to listen on 8443. Go to https://127.0.0.1:8443/")
 	srv := http.Server{Addr: ":8443"}
 
