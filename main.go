@@ -5,8 +5,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
-	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -61,16 +61,16 @@ func (p *ProxyServer) ServeAdmin(w http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
-	log.Println("Reading config file test.toml")
+	log.WithField("file", "test.toml").Info("Reading config file")
 	config, err := ReadConfig("test.toml")
 	if err != nil {
 		log.Fatal(err)
 	}
 	j, err := json.MarshalIndent(config, "..", "\t")
 	if err != nil {
-		log.Printf("Config: %v", config)
+		log.Infof("Config: %v", config)
 	} else {
-		log.Printf("Config: %s", j)
+		log.Infof("Config: %s", j)
 	}
 
 	r := mux.NewRouter()
@@ -78,19 +78,18 @@ func main() {
 	proxy := NewProxyServer(config)
 	// Admin
 	r.PathPrefix("/_cat").Methods("GET").HandlerFunc(proxy.ServeAdmin)
+	r.PathPrefix("/_stats").Methods("GET").HandlerFunc(proxy.ServeAdmin)
+	r.PathPrefix("/_plugin").Methods("GET").HandlerFunc(proxy.ServeAdmin)
+	r.PathPrefix("/_template").Methods("POST").HandlerFunc(proxy.ServeAdmin)
 	r.PathPrefix("/").Methods("DELETE").HandlerFunc(proxy.ServeAdmin)
-
 	// Write
 	r.PathPrefix("/").Methods("POST").HandlerFunc(proxy.ServeWrite)
-
 	// Read
 	r.PathPrefix("/").Methods("GET").HandlerFunc(proxy.ServeRead)
 
-	log.Printf("About to listen on %s", config.Server.Listen)
-	srv := http.Server{Addr: config.Server.Listen}
-
 	pool := x509.NewCertPool()
 	for _, ca := range config.Server.CaCerts {
+		log.WithField("file", ca).Info("Loading CA certs")
 		f, err := os.Open(ca)
 		if err != nil {
 			log.Fatal(err)
@@ -106,6 +105,8 @@ func main() {
 	}
 	http.Handle("/", r)
 
+	log.WithField("address", config.Server.Listen).Info("listening")
+	srv := http.Server{Addr: config.Server.Listen}
 	srv.TLSConfig = &tls.Config{ClientAuth: tls.VerifyClientCertIfGiven,
 		ClientCAs: pool}
 	err = srv.ListenAndServeTLS(config.Server.Cert, config.Server.Key)
