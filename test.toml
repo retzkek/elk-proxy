@@ -1,0 +1,20 @@
+[server]
+listen = ":8443"
+proxy = "http://localhost:9200"
+ca_certs = ["certs/ca-bundle.crt"]
+cert = "certs/cert.pem"
+key = "certs/key.pem"
+
+[global]
+admin_auth = "cert"  # requires a cert listed in admin_certs
+admin_certs = [      # just CNs
+    "Kevin Retzke 3130",
+    "Kevin Retzke A33396",
+    "UID:kretzke"
+]
+write_auth = ""   # nobody beyond admins can write
+read_auth = "any" # anyone can read
+
+[[indexes]]
+index_pattern = "test.*" # regex
+write_auth = "any_cert"  # write allowed to anyone who presents a valid certificate

@@ -1,28 +1,37 @@
 package main
 
 import (
-	"crypto/x509"
-	"encoding/json"
+	"github.com/BurntSushi/toml"
 )
 
-type role struct {
-	Auth  string
-	Certs []x509.Certificate
+type authConfig struct {
+	IndexPattern string   `toml:"index_pattern"`
+	AdminAuth    string   `toml:"admin_auth"`
+	AdminCerts   []string `toml:"admin_certs"`
+	WriteAuth    string   `toml:"write_auth"`
+	WriteCerts   []string `toml:"write_certs"`
+	ReadAuth     string   `toml:"read_auth"`
+	ReadCerts    []string `toml:"read_certs"`
 }
 
-type auth struct {
-	IndexPattern string `json:"index_pattern"`
-	Admin        role
-	Write        role
-	Read         role
+type serverConfig struct {
+	Listen  string
+	Proxy   string
+	CaCerts []string `toml:"ca_certs"`
+	Cert    string
+	Key     string
 }
 
 type config struct {
-	Listen      string
-	Proxy       string
-	CaCerts     []string `json:"ca_certs"`
-	Cert        string
-	Key         string
-	AuthGlobal  auth   `json:"auth_global"`
-	AuthIndexes []auth `json:"auth_indexes"`
+	Server  serverConfig
+	Global  authConfig
+	Indexes []authConfig
+}
+
+func ReadConfig(filename string) (*config, error) {
+	var conf config
+	if _, err := toml.DecodeFile(filename, &conf); err != nil {
+		return nil, err
+	}
+	return &conf, nil
 }

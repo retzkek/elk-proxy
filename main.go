@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"github.com/gorilla/mux"
 	"log"
 	"net/http"
@@ -11,14 +12,6 @@ import (
 	"net/url"
 	"os"
 )
-
-// Read access (GET commands) is allowed to all
-
-// Write access (POST commands) is allowed to users with the folling CNs:
-var authorizedWriteCNs = []string{"Kevin Retzke 3130"}
-
-// Admin access (DELETE commands, access to  '/_cat/*) is allowed to users with the folling CNs:
-var authorizedAdminCNs = []string{"Kevin Retzke 3130"}
 
 func authorizedCN(certs []*x509.Certificate, cns []string) (bool, string) {
 	for _, cert := range certs {
@@ -32,41 +25,57 @@ func authorizedCN(certs []*x509.Certificate, cns []string) (bool, string) {
 }
 
 type ProxyServer struct {
-	proxy *httputil.ReverseProxy
+	Config *config
+	Proxy  *httputil.ReverseProxy
 }
 
-func NewProxyServer(target_url string) *ProxyServer {
-	t, err := url.Parse(target_url)
+func NewProxyServer(config *config) *ProxyServer {
+	var p ProxyServer
+	p.Config = config
+	t, err := url.Parse(p.Config.Server.Proxy)
 	if err != nil {
 		log.Fatal(err)
 	}
-	return &ProxyServer{proxy: httputil.NewSingleHostReverseProxy(t)}
+	p.Proxy = httputil.NewSingleHostReverseProxy(t)
+	return &p
 }
 
 func (p *ProxyServer) ServeRead(w http.ResponseWriter, req *http.Request) {
-	p.proxy.ServeHTTP(w, req)
+	p.Proxy.ServeHTTP(w, req)
 }
 
 func (p *ProxyServer) ServeWrite(w http.ResponseWriter, req *http.Request) {
-	if auth, _ := authorizedCN(req.TLS.PeerCertificates, authorizedWriteCNs); auth {
-		p.proxy.ServeHTTP(w, req)
+	if auth, _ := authorizedCN(req.TLS.PeerCertificates, p.Config.Global.WriteCerts); auth {
+		p.Proxy.ServeHTTP(w, req)
 	} else {
 		http.Error(w, "not authorized", http.StatusUnauthorized)
 	}
 }
 
 func (p *ProxyServer) ServeAdmin(w http.ResponseWriter, req *http.Request) {
-	if auth, _ := authorizedCN(req.TLS.PeerCertificates, authorizedAdminCNs); auth {
-		p.proxy.ServeHTTP(w, req)
+	if auth, _ := authorizedCN(req.TLS.PeerCertificates, p.Config.Global.AdminCerts); auth {
+		p.Proxy.ServeHTTP(w, req)
 	} else {
 		http.Error(w, "not authorized", http.StatusUnauthorized)
 	}
 }
 
 func main() {
+	log.Println("Reading config file test.toml")
+	config, err := ReadConfig("test.toml")
+	if err != nil {
+		log.Fatal(err)
+	}
+	j, err := json.MarshalIndent(config, "..", "\t")
+	if err != nil {
+		log.Printf("Config: %v", config)
+	} else {
+		log.Printf("Config: %s", j)
+	}
+
 	r := mux.NewRouter()
 
-	proxy := NewProxyServer("http://localhost:9200/")
+	proxy := NewProxyServer(config)
 	// Admin
 	r.PathPrefix("/_cat").Methods("GET").HandlerFunc(proxy.ServeAdmin)
 	r.PathPrefix("/").Methods("DELETE").HandlerFunc(proxy.ServeAdmin)
@@ -77,27 +86,29 @@ func main() {
 	// Read
 	r.PathPrefix("/").Methods("GET").HandlerFunc(proxy.ServeRead)
 
-	log.Printf("About to listen on 8443. Go to https://127.0.0.1:8443/")
-	srv := http.Server{Addr: ":8443"}
+	log.Printf("About to listen on %s", config.Server.Listen)
+	srv := http.Server{Addr: config.Server.Listen}
 
-	f, err := os.Open("certs/ca-bundle.crt")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer f.Close()
-	var buf bytes.Buffer
-	if _, err := buf.ReadFrom(f); err != nil {
-		log.Fatal(err)
-	}
 	pool := x509.NewCertPool()
-	if ok := pool.AppendCertsFromPEM(buf.Bytes()); !ok {
-		log.Fatal(err)
+	for _, ca := range config.Server.CaCerts {
+		f, err := os.Open(ca)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer f.Close()
+		var buf bytes.Buffer
+		if _, err := buf.ReadFrom(f); err != nil {
+			log.Fatal(err)
+		}
+		if ok := pool.AppendCertsFromPEM(buf.Bytes()); !ok {
+			log.Fatal(err)
+		}
 	}
 	http.Handle("/", r)
 
 	srv.TLSConfig = &tls.Config{ClientAuth: tls.VerifyClientCertIfGiven,
 		ClientCAs: pool}
-	err = srv.ListenAndServeTLS("certs/cert.pem", "certs/key.pem")
+	err = srv.ListenAndServeTLS(config.Server.Cert, config.Server.Key)
 	if err != nil {
 		log.Fatal(err)
 	}
