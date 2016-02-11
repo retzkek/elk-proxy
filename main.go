@@ -5,11 +5,20 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"flag"
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
 	"net/http"
 	"os"
 )
+
+var (
+	configFile string
+)
+
+func init() {
+	flag.StringVar(&configFile, "c", "elk-proxy.toml", "config file")
+}
 
 func loadCerts(certs []string) (*x509.CertPool, error) {
 	pool := x509.NewCertPool()
@@ -32,8 +41,10 @@ func loadCerts(certs []string) (*x509.CertPool, error) {
 }
 
 func main() {
-	log.WithField("file", "test.toml").Info("Reading config file")
-	config, err := ReadConfig("test.toml")
+	flag.Parse()
+
+	log.WithField("file", configFile).Info("Reading config file")
+	config, err := ReadConfig(configFile)
 	if err != nil {
 		log.Fatal(err)
 	}
