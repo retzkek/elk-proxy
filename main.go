@@ -59,9 +59,9 @@ func main() {
 	}
 	j, err := json.MarshalIndent(config, "..", "\t")
 	if err != nil {
-		log.Infof("Config: %v", config)
+		log.Debugf("Config: %v", config)
 	} else {
-		log.Infof("Config: %s", j)
+		log.Debugf("Config: %s", j)
 	}
 
 	r := mux.NewRouter()
