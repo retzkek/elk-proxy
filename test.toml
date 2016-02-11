@@ -9,8 +9,7 @@ key = "certs/key.pem"
 admin_auth = "cert"  # requires a cert listed in admin_certs
 admin_certs = [      # just CNs
     "Kevin Retzke 3130",
-    "Kevin Retzke A33396",
-    "UID:kretzke"
+    "Kevin Retzke A33396"
 ]
 write_auth = ""   # nobody beyond admins can write
 read_auth = "any" # anyone can read
