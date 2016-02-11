@@ -14,10 +14,12 @@ import (
 
 var (
 	configFile string
+	logLevel   string
 )
 
 func init() {
 	flag.StringVar(&configFile, "c", "elk-proxy.toml", "config file")
+	flag.StringVar(&logLevel, "l", "info", "log level (panic, fatal, error, warn, info, debug)")
 }
 
 func loadCerts(certs []string) (*x509.CertPool, error) {
@@ -42,6 +44,13 @@ func loadCerts(certs []string) (*x509.CertPool, error) {
 
 func main() {
 	flag.Parse()
+
+	log.WithField("level", logLevel).Info("setting log level")
+	lvl, err := log.ParseLevel(logLevel)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.SetLevel(lvl)
 
 	log.WithField("file", configFile).Info("Reading config file")
 	config, err := ReadConfig(configFile)

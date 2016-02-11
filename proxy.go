@@ -47,9 +47,9 @@ func (p *ProxyServer) authorize(req *http.Request, authType string, authCNs []st
 
 func (p *ProxyServer) authorizeRequest(req *http.Request, role string) bool {
 	logger := log.WithFields(log.Fields{
-		"path":    req.URL.Path,
-		"method":  req.Method,
-		"address": req.RemoteAddr,
+		"path":   req.URL.Path,
+		"method": req.Method,
+		"source": req.RemoteAddr,
 	})
 	if authed, authReason := p.authorize(req, p.Config.Global.AdminAuth, p.Config.Global.AdminCerts); authed {
 		logger.Infof("authorized global admin: %s", authReason)
@@ -58,13 +58,12 @@ func (p *ProxyServer) authorizeRequest(req *http.Request, role string) bool {
 	if role == "write" {
 		if authed, authReason := p.authorize(req, p.Config.Global.WriteAuth, p.Config.Global.WriteCerts); authed {
 			logger.Infof("authorized global write: %s", authReason)
-			logger.Info(authReason)
 			return true
 		}
 	}
 	if role == "read" {
 		if authed, authReason := p.authorize(req, p.Config.Global.ReadAuth, p.Config.Global.ReadCerts); authed {
-			logger.Infof("authorized global read: %s", authReason)
+			logger.Debugf("authorized global read: %s", authReason)
 			return true
 		}
 	}
@@ -83,19 +82,19 @@ func (p *ProxyServer) authorizeRequest(req *http.Request, role string) bool {
 			}
 			if role == "write" {
 				if authed, authReason := p.authorize(req, index.WriteAuth, index.WriteCerts); authed {
-					logger.WithField("index", index.IndexPattern).Infof("authorized index write: %s", authReason)
+					logger.WithField("index", index.IndexPattern).Debugf("authorized index write: %s", authReason)
 					return true
 				}
 			}
 			if role == "read" {
 				if authed, authReason := p.authorize(req, index.ReadAuth, index.ReadCerts); authed {
-					logger.WithField("index", index.IndexPattern).Infof("authorized index read: %s", authReason)
+					logger.WithField("index", index.IndexPattern).Debugf("authorized index read: %s", authReason)
 					return true
 				}
 			}
 		}
 	}
-	logger.Warning("unauthorized")
+	logger.Debug("unauthorized")
 	return false
 }
 
