@@ -77,7 +77,6 @@ func main() {
 	// Read
 	r.PathPrefix("/").Methods("GET").HandlerFunc(proxy.ServeRead)
 
-	log.WithField("address", config.Server.Listen).Info("listening")
 	srv := http.Server{Addr: config.Server.Listen}
 	pool, err := loadCerts(config.Server.CaCerts)
 	if err != nil {
@@ -87,6 +86,7 @@ func main() {
 		ClientAuth: tls.VerifyClientCertIfGiven,
 		ClientCAs:  pool,
 	}
+	log.WithField("address", config.Server.Listen).Info("listening")
 	err = srv.ListenAndServeTLS(config.Server.Cert, config.Server.Key)
 	if err != nil {
 		log.Fatal(err)
