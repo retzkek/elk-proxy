@@ -74,11 +74,10 @@ func main() {
 	r.Path("/{index:.*}/_search").Methods("GET", "POST").HandlerFunc(proxy.ServeRead)
 	r.Path("/{index:.*}/_msearch").Methods("GET", "POST").HandlerFunc(proxy.ServeRead)
 	// Admin
-	r.PathPrefix("/_").Methods("GET").HandlerFunc(proxy.ServeAdmin)
-	r.PathPrefix("/_").Methods("POST").HandlerFunc(proxy.ServeAdmin)
+	r.PathPrefix("/_").HandlerFunc(proxy.ServeAdmin)
 	r.PathPrefix("/").Methods("DELETE").HandlerFunc(proxy.ServeAdmin)
 	// Write
-	r.PathPrefix("/").Methods("POST").HandlerFunc(proxy.ServeWrite)
+	r.PathPrefix("/").Methods("POST", "PUT").HandlerFunc(proxy.ServeWrite)
 	// Read
 	r.PathPrefix("/").Methods("GET").HandlerFunc(proxy.ServeRead)
 
