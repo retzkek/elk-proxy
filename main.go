@@ -69,8 +69,8 @@ func main() {
 
 	proxy := NewProxyServer(config)
 	// Whitelist search endpoints for read access, everything else that starts with _ is restricted to admin
-	r.Path("/_search").Methods("GET", "POST").HandlerFunc(proxy.ServeRead)
-	r.Path("/_msearch").Methods("GET", "POST").HandlerFunc(proxy.ServeRead)
+	r.PathPrefix("/_search").Methods("GET", "POST").HandlerFunc(proxy.ServeRead)
+	r.PathPrefix("/_msearch").Methods("GET", "POST").HandlerFunc(proxy.ServeRead)
 	r.Path("/{index:.*}/_search").Methods("GET", "POST").HandlerFunc(proxy.ServeRead)
 	r.Path("/{index:.*}/_msearch").Methods("GET", "POST").HandlerFunc(proxy.ServeRead)
 	// Admin
